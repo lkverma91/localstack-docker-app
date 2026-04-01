@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3307/authdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: appuser
+    password: apppassword
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    show-sql: true
+
+app:
+  jwt:
+    secret: b3BlbnNlc2FtZS1sb2NhbHN0YWNrLWp3dC1zZWNyZXQta2V5LXRoYXQtaXMtbG9uZy1lbm91Z2gtZm9yLUhTNTEy
+    access-token-expiry-ms: 900000
+    refresh-token-expiry-ms: 86400000
+
+  aws:
+    endpoint: http://localhost:4566
+    region: us-east-1
+    s3:
+      bucket-name: user-profiles
