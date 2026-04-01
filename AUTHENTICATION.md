@@ -117,7 +117,7 @@ This application uses **stateless JWT-based authentication** with **refresh toke
 
 | File | Purpose |
 |------|---------|
-| `service/UserService.java` | Implements `UserDetailsService` (required by Spring Security). The `loadUserByUsername()` method loads a user by email and converts it to Spring Security's `UserDetails` with the user's role as a `GrantedAuthority`. Also handles user registration: checks for duplicate emails, encodes the password with BCrypt, saves the user, and returns a profile DTO. |
+| `service/UserService.java` | Implements `UserDetailsService` (required by Spring Security). The `loadUserByUsername()` method loads a user by email and converts it to Spring Security's `UserDetails` with the user's role as a `GrantedAuthority`. Also handles user registration: checks for duplicate emails, encodes the password with BCrypt, saves the user, and returns a profile DTO. Provides `getAllUsers()` for admins (sorted by user id). |
 | `service/RefreshTokenService.java` | Manages refresh token lifecycle: (1) `createRefreshToken()` generates a UUID, ties it to a user, sets the expiry, and saves it (deleting any previous tokens for that user), (2) `verifyExpiration()` checks if a token is expired and deletes it if so, (3) `deleteByUserId()` removes all tokens for a user (used during logout). |
 | `service/AuthService.java` | **Orchestrates the auth workflows.** `register()` delegates to UserService. `login()` authenticates credentials via `AuthenticationManager`, generates an access token via `JwtTokenProvider`, creates a refresh token via `RefreshTokenService`, and returns both. `refreshToken()` validates the refresh token, generates a new pair (token rotation). `logout()` deletes all refresh tokens for the user. |
 | `service/PasswordResetService.java` | **Handles forgot/reset password.** `initiatePasswordReset()` generates a 6-digit OTP, stores it in the database with a 15-minute expiry, and sends it to the user's email via AWS SES (LocalStack in dev). `resetPassword()` validates the OTP (checks existence, ownership, expiry, and used flag), marks it as used, and updates the user's password with a BCrypt hash. If SES email delivery fails, the OTP is logged as a fallback for development. |
@@ -127,7 +127,7 @@ This application uses **stateless JWT-based authentication** with **refresh toke
 | File | Purpose |
 |------|---------|
 | `controller/AuthController.java` | REST controller at `/api/auth`. Exposes: `POST /register` (public), `POST /login` (public), `POST /refresh` (public), `POST /logout` (authenticated), `POST /forgot-password` (public), `POST /reset-password` (public). All request bodies are validated with Bean Validation annotations (`@Valid`). |
-| `controller/UserController.java` | REST controller at `/api/users`. Exposes: `GET /profile` (authenticated, any role), `GET /admin` (authenticated, `ROLE_ADMIN` only via `@PreAuthorize`). The `Authentication` object is injected by Spring Security after the JWT filter validates the token. |
+| `controller/UserController.java` | REST controller at `/api/users`. Exposes: `GET /` list all users (`ROLE_ADMIN` only), `GET /profile`, `PUT /profile` (authenticated user updates own `fullName` / `email`), `PUT /{userId}` (admin updates `fullName` / `email` / `enabled`), `GET /admin`, `PUT /{userId}/role` (admin). The `Authentication` object is injected by Spring Security after the JWT filter validates the token. |
 
 ### DTO Layer
 
@@ -137,7 +137,8 @@ This application uses **stateless JWT-based authentication** with **refresh toke
 | `dto/LoginRequest.java` | Request body for login. Validates `email` and `password` as non-blank. |
 | `dto/RefreshTokenRequest.java` | Request body for token refresh. Contains the `refreshToken` string. |
 | `dto/TokenResponse.java` | Response body returned after login/refresh. Contains `access_token`, `refresh_token`, `token_type` ("Bearer"), and `expires_in` (seconds). |
-| `dto/UserProfileResponse.java` | Response body for user profile. Contains `id`, `fullName`, `email`, `role`, `createdAt`. Never exposes the password. |
+| `dto/UserProfileResponse.java` | Response body for user profile. Contains `id`, `fullName`, `email`, `role`, `enabled`, `createdAt`. Never exposes the password. |
+| `dto/UpdateUserRequest.java` | Partial update body: optional `fullName`, `email`, and `enabled` (only `fullName` and `email` apply to self-service `PUT /profile`; `enabled` is only applied for admin `PUT /{userId}`). At least one field must be sent. |
 | `dto/ForgotPasswordRequest.java` | Request body for forgot password. Contains `email` (validated as non-blank and valid format). |
 | `dto/ResetPasswordRequest.java` | Request body for password reset. Contains `email`, `token` (the 6-digit OTP), and `newPassword` (8-100 chars). |
 | `dto/ChangeRoleRequest.java` | Request body for changing a user's role. Contains `role` (must be `ROLE_USER` or `ROLE_ADMIN`). |
@@ -492,6 +493,67 @@ Authorization: Bearer eyJhbGciOiJIUzUxMiJ9...
 }
 ```
 
+### GET /api/users
+
+List every user (admin only). Returns the same shape as profile for each user (no passwords).
+
+**Headers:**
+```
+Authorization: Bearer <access_token_of_ROLE_ADMIN>
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": 200,
+  "message": "Users retrieved successfully",
+  "data": [
+    {
+      "id": 1,
+      "fullName": "System Admin",
+      "email": "admin@authapp.local",
+      "role": "ROLE_ADMIN",
+      "enabled": true,
+      "createdAt": "2026-04-01T10:00:00Z"
+    }
+  ],
+  "timestamp": "2026-04-01T10:01:00Z"
+}
+```
+
+**Response (403 Forbidden)** if the caller is not `ROLE_ADMIN`.
+
+### PUT /api/users/profile
+
+Update the **current** user's profile. Requires JWT. At least one of `fullName` or `email` must be provided (the `enabled` field is ignored for this route).
+
+**Request:**
+```json
+{
+  "fullName": "Jane Doe",
+  "email": "jane.new@example.com"
+}
+```
+
+**Response (200 OK):** Same shape as `UserProfileResponse` (includes `enabled`).
+
+**Note:** After changing `email`, log in again to obtain a JWT whose subject matches the new email.
+
+### PUT /api/users/{userId}
+
+Update any user (**Admin only**). At least one of `fullName`, `email`, or `enabled` must be provided.
+
+**Request:**
+```json
+{
+  "fullName": "Support User",
+  "email": "support@company.com",
+  "enabled": false
+}
+```
+
+**Response (200 OK):** Updated `UserProfileResponse`.
+
 ### GET /api/users/profile
 
 Get the authenticated user's profile. Requires a valid access token.
@@ -511,6 +573,7 @@ Authorization: Bearer eyJhbGciOiJIUzUxMiJ9...
     "fullName": "John Doe",
     "email": "john@example.com",
     "role": "ROLE_USER",
+    "enabled": true,
     "createdAt": "2026-04-01T10:00:00Z"
   },
   "timestamp": "2026-04-01T10:01:00Z"

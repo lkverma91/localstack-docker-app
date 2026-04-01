@@ -103,6 +103,7 @@ Configured in `SecurityConfig`:
 
 - **Public (no JWT):** `/api/auth/**` (register, login, refresh, forgot-password, reset-password), Swagger, actuator health.
 - **Protected (JWT required):** e.g. `/api/users/**`, `/api/auth/logout`.
+- **Admin only:** `GET /api/users` (list all users), `PUT /api/users/{id}/role`, and other routes annotated with `hasRole('ADMIN')`.
 
 Forgot/reset password must stay public so users who forgot credentials can still reach them.
 
