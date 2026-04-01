@@ -64,6 +64,15 @@ public class UserService implements UserDetailsService {
         return toProfileResponse(user);
     }
 
+    @Transactional
+    public UserProfileResponse changeUserRole(Long userId, Role role) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + userId));
+        user.setRole(role);
+        User saved = userRepository.save(user);
+        return toProfileResponse(saved);
+    }
+
     private UserProfileResponse toProfileResponse(User user) {
         return UserProfileResponse.builder()
                 .id(user.getId())
