@@ -229,14 +229,43 @@ curl -s -X POST http://localhost:8080/api/auth/logout \
   -H "Authorization: Bearer $ACCESS_TOKEN" | json_pp
 ```
 
-### 6. Try Profile After Logout (token still works until expiry)
+### 6. Forgot Password (request OTP)
 
 ```bash
-curl -s -X GET http://localhost:8080/api/users/profile \
-  -H "Authorization: Bearer $ACCESS_TOKEN" | json_pp
+curl -s -X POST http://localhost:8080/api/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john@example.com"
+  }' | json_pp
 ```
 
-This still returns the profile because the access token is stateless and hasn't expired. The refresh token, however, has been deleted -- so once the access token expires, the user must log in again.
+The OTP is sent via email (SES). In development with LocalStack, check the app logs:
+```bash
+docker-compose logs app | grep "OTP"
+```
+
+### 7. Reset Password (use the OTP)
+
+```bash
+curl -s -X POST http://localhost:8080/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john@example.com",
+    "token": "482917",
+    "newPassword": "myNewSecurePassword"
+  }' | json_pp
+```
+
+### 8. Login with New Password
+
+```bash
+curl -s -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john@example.com",
+    "password": "myNewSecurePassword"
+  }' | json_pp
+```
 
 ### Windows PowerShell Examples
 
@@ -262,6 +291,18 @@ Invoke-RestMethod -Uri "http://localhost:8080/api/users/profile" -Method GET `
 Invoke-RestMethod -Uri "http://localhost:8080/api/auth/refresh" -Method POST `
   -ContentType "application/json" `
   -Body "{`"refreshToken`":`"$refreshToken`"}"
+
+# Forgot Password
+Invoke-RestMethod -Uri "http://localhost:8080/api/auth/forgot-password" -Method POST `
+  -ContentType "application/json" `
+  -Body '{"email":"john@example.com"}'
+
+# Check app logs for OTP: docker-compose logs app | Select-String "OTP"
+
+# Reset Password (replace 123456 with OTP from logs)
+Invoke-RestMethod -Uri "http://localhost:8080/api/auth/reset-password" -Method POST `
+  -ContentType "application/json" `
+  -Body '{"email":"john@example.com","token":"123456","newPassword":"myNewSecurePassword"}'
 
 # Logout
 Invoke-RestMethod -Uri "http://localhost:8080/api/auth/logout" -Method POST `
