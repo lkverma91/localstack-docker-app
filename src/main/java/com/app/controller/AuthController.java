@@ -2,6 +2,7 @@ package com.app.controller;
 
 import com.app.dto.*;
 import com.app.service.AuthService;
+import com.app.service.PasswordResetService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -14,10 +15,11 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@Tag(name = "Authentication", description = "User registration, login, token refresh, and logout")
+@Tag(name = "Authentication", description = "User registration, login, token refresh, logout, and password reset")
 public class AuthController {
 
     private final AuthService authService;
+    private final PasswordResetService passwordResetService;
 
     @PostMapping("/register")
     @Operation(summary = "Register a new user")
@@ -49,5 +51,24 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> logout(Authentication authentication) {
         authService.logout(authentication.getName());
         return ResponseEntity.ok(ApiResponse.success("Logged out successfully", null));
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Request a password reset OTP via email")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.initiatePasswordReset(request.getEmail());
+        return ResponseEntity.ok(ApiResponse.success(
+                "If the email exists, a password reset OTP has been sent", null));
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Reset password using the OTP received via email")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        passwordResetService.resetPassword(
+                request.getEmail(), request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok(ApiResponse.success(
+                "Password has been reset successfully. Please login with your new password.", null));
     }
 }
