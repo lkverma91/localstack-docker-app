@@ -1,3 +1,7 @@
+# Compose stack: MySQL + LocalStack + Spring Boot app (recommended).
+# LocalStack: S3, SES, SSM — init-aws.sh seeds bucket + SES identity + SSM params.
+# App uses SPRING_PROFILES_ACTIVE=docker → application-docker.yml (localstack:4566, mysql:3306).
+
 services:
   mysql:
     image: mysql:8.0
@@ -42,7 +46,9 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
     ports:
-      - "8080:8080"
+      # Host machine port : app port inside container (fixed 8080; matches Dockerfile HEALTHCHECK)
+      # Example: APP_HOST_PORT=9090 → http://localhost:9090
+      - "${APP_HOST_PORT:-8080}:8080"
     depends_on:
       mysql:
         condition: service_healthy

@@ -1,0 +1,15 @@
+# Local secrets — copy from .env.example and fill in; never commit real values
+.env
+.env.local
+.env.*.local
+
+# Build
+target/
+*.class
+
+# IDE
+.idea/
+*.iml
+.project
+.classpath
+.settings/

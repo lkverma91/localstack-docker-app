@@ -11,8 +11,9 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
 
+# HTTP port (override: SERVER_PORT env var, e.g. SERVER_PORT=9090)
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
   error:
     include-message: always
     include-binding-errors: always
@@ -32,3 +33,9 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     operations-sorter: method
+
+# Optional defaults (override per profile: application-docker.yml, application-local.yml)
+# app:
+#   aws:
+#     endpoint:   # empty = real AWS (DefaultCredentialsProvider). Non-empty = LocalStack URL.
+#     region: us-east-1

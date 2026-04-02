@@ -1,0 +1,34 @@
+# =============================================================================
+# Spring profile: prod  — real AWS + managed MySQL (e.g. RDS)
+# Activate: SPRING_PROFILES_ACTIVE=prod
+# Configure via environment variables (see repository .env.example and docs/aws-production.md)
+# =============================================================================
+# app.aws.endpoint empty/unset → AwsConfig uses DefaultCredentialsProvider (no LocalStack).
+# =============================================================================
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    show-sql: false
+    hibernate:
+      # First deploy to empty DB: set JPA_DDL_AUTO=update once, then use validate + migrations.
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-expiry-ms: ${JWT_ACCESS_EXPIRY:900000}
+    refresh-token-expiry-ms: ${JWT_REFRESH_EXPIRY:86400000}
+
+  aws:
+    endpoint: ${APP_AWS_ENDPOINT:}
+    region: ${AWS_REGION:us-east-1}
+    s3:
+      bucket-name: ${AWS_S3_BUCKET:}
+    ses:
+      from-email: ${APP_AWS_SES_FROM_EMAIL}
