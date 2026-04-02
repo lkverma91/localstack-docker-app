@@ -7,6 +7,7 @@ import com.app.repository.PasswordResetTokenRepository;
 import com.app.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,10 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
+/**
+ * Sends password-reset OTPs via {@link SesClient}. With Docker/LocalStack, {@link com.app.config.AwsConfig}
+ * points SES to the LocalStack endpoint; {@code init-aws.sh} verifies the sender email identity in emulated SES.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -28,9 +33,11 @@ public class PasswordResetService {
     private final PasswordEncoder passwordEncoder;
     private final SesClient sesClient;
 
+    @Value("${app.aws.ses.from-email:noreply@authapp.local}")
+    private String senderEmail;
+
     private static final int TOKEN_LENGTH = 6;
     private static final long TOKEN_EXPIRY_MINUTES = 15;
-    private static final String SENDER_EMAIL = "noreply@authapp.local";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Transactional
@@ -106,7 +113,7 @@ public class PasswordResetService {
 
         try {
             SendEmailRequest request = SendEmailRequest.builder()
-                    .source(SENDER_EMAIL)
+                    .source(senderEmail)
                     .destination(Destination.builder().toAddresses(toEmail).build())
                     .message(Message.builder()
                             .subject(Content.builder().data(subject).charset("UTF-8").build())

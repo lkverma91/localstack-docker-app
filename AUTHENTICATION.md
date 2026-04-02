@@ -110,7 +110,7 @@ This application uses **stateless JWT-based authentication** with **refresh toke
 | File | Purpose |
 |------|---------|
 | `config/SecurityConfig.java` | **Central security configuration.** Defines the `SecurityFilterChain` bean that: (1) disables CSRF (stateless APIs don't need it), (2) sets session policy to `STATELESS` (no HTTP sessions), (3) registers `JwtAuthenticationFilter` before Spring's `UsernamePasswordAuthenticationFilter`, (4) whitelists public URLs (`/api/auth/**`, Swagger, actuator health), and (5) requires authentication for everything else. Also provides `BCryptPasswordEncoder` and `AuthenticationManager` beans. |
-| `config/AwsConfig.java` | Configures AWS SDK v2 clients (`S3Client`, `SesClient`, `SsmClient`). When `app.aws.endpoint` is set (LocalStack mode), clients point to the LocalStack endpoint with dummy credentials. In production, this would use IAM roles. |
+| `config/AwsConfig.java` | Configures AWS SDK v2 clients (`S3Client`, `SesClient`, `SsmClient`). **Docker (primary):** `application-docker.yml` sets `app.aws.endpoint` to `http://localstack:4566`. **Local JVM:** `application-local.yml` uses `http://localhost:4566`. If `app.aws.endpoint` is empty, clients use `DefaultCredentialsProvider` (real AWS). See [docs/localstack-docker.md](docs/localstack-docker.md). |
 | `config/OpenApiConfig.java` | Configures Swagger UI. Defines the `bearerAuth` security scheme so the Swagger "Authorize" button accepts JWT tokens. Sets API title, version, and description. |
 
 ### Service Layer

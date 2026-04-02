@@ -1,6 +1,14 @@
 # How to Run the Project
 
-This guide covers all the ways to run the application: locally with Docker Compose (recommended), locally without Docker, and common troubleshooting steps.
+**Primary path:** run the full stack with **Docker Compose** — Spring Boot (`app`), **MySQL**, and **LocalStack** on one network. The app uses Spring profile **`docker`** and [`application-docker.yml`](src/main/resources/application-docker.yml), which points AWS clients to **`http://localstack:4566`** (service name inside Compose, not `localhost`).
+
+**Optional:** run only the JVM on your machine with profile **`local`** — [`application-local.yml`](src/main/resources/application-local.yml) uses **`http://localhost:4566`** for LocalStack and **`localhost:3307`** for MySQL; that file documents (in comments) why docker-style hostnames must not be used on the host.
+
+Details: [docs/localstack-docker.md](docs/localstack-docker.md).
+
+**Production (real AWS + RDS):** use Spring profile **`prod`**, environment variables as in [`.env.example`](.env.example), and follow [docs/aws-production.md](docs/aws-production.md).
+
+This guide also covers running without Docker, hybrid setups, and troubleshooting.
 
 ---
 
@@ -14,6 +22,7 @@ This guide covers all the ways to run the application: locally with Docker Compo
 6. [Swagger UI](#swagger-ui)
 7. [LocalStack Verification](#localstack-verification)
 8. [Troubleshooting](#troubleshooting)
+9. [Production on AWS](#production-on-aws)
 
 ---
 
@@ -43,6 +52,26 @@ cd localstack-docker-app
 **2. Start all services:**
 ```bash
 docker-compose up --build
+```
+
+**Change the port on your machine (host only):** the app still listens on **8080 inside the container**, but you can map it to another port on `localhost` using `APP_HOST_PORT` (or a `.env` file next to `docker-compose.yml`):
+
+```bash
+# Examples — Linux / macOS / Git Bash
+APP_HOST_PORT=9090 docker compose up --build -d
+# then open http://localhost:9090
+```
+
+```powershell
+# Windows PowerShell
+$env:APP_HOST_PORT = "9090"
+docker compose up --build -d
+```
+
+**Run the JVM on a different port (not Docker):** set `SERVER_PORT` before starting Spring Boot (matches `application.yml`):
+
+```bash
+SERVER_PORT=9090 mvn spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
 This will:
@@ -360,6 +389,18 @@ aws --endpoint-url=http://localhost:4566 ses list-identities \
 > docker exec auth-localstack awslocal s3 ls
 > docker exec auth-localstack awslocal ssm get-parameter --name "/app/jwt/secret" --with-decryption
 > ```
+
+---
+
+## Production on AWS
+
+Deploy the same application JAR against **Amazon RDS (MySQL)** and **real SES / S3** by:
+
+1. Setting **`SPRING_PROFILES_ACTIVE=prod`**.
+2. Copying **[`.env.example`](.env.example)** to **`.env`**, filling in RDS URL, credentials, `JWT_SECRET`, `AWS_REGION`, **`APP_AWS_SES_FROM_EMAIL`** (must be verified in SES), and **`APP_AWS_ENDPOINT`** left empty.
+3. Using an **IAM role** or instance/task credentials instead of long-lived keys when possible.
+
+Full checklist (RDS security groups, SES verification, S3 bucket IAM, credential chain): **[docs/aws-production.md](docs/aws-production.md)**.
 
 ---
 

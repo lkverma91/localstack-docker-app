@@ -1,3 +1,13 @@
+# =============================================================================
+# Spring profile: docker  (use when the app runs INSIDE Docker Compose)
+# Activated by: SPRING_PROFILES_ACTIVE=docker  (see docker-compose.yml → app service)
+# =============================================================================
+# MySQL: hostname "mysql" is the Compose service name (not localhost).
+# LocalStack: hostname "localstack" is the Compose service name — same Docker network as "app".
+# From your machine, LocalStack is still http://localhost:4566; inside the app container,
+# you must use http://localstack:4566 (this file).
+# =============================================================================
+
 spring:
   datasource:
     url: jdbc:mysql://mysql:3306/authdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
@@ -12,7 +22,10 @@ app:
     refresh-token-expiry-ms: ${JWT_REFRESH_EXPIRY:86400000}
 
   aws:
+    # Primary path for this project: LocalStack inside Docker (see AwsConfig.java)
     endpoint: http://localstack:4566
     region: us-east-1
     s3:
       bucket-name: user-profiles
+    ses:
+      from-email: noreply@authapp.local
